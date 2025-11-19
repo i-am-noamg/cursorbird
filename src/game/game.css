@@ -1,0 +1,19 @@
+html, body { height: 100%; margin: 0; padding: 0; background: #87CEEB; }
+#game { display: block; width: 100vw; height: 100vh; background: linear-gradient(#87CEEB, #cdefff); }
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font: 700 24px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  pointer-events: none;
+}
+.hidden { display: none; }
+
+

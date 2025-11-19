@@ -1,0 +1,264 @@
+{
+  "name": "cursor-bird",
+  "displayName": "Cursor Bird",
+  "description": "Flap some wings while the agents are getting sh!t done.",
+  "version": "0.0.1",
+  "publisher": "cursorbird",
+  "license": "MIT",
+  "keywords": [
+    "game",
+    "flap",
+    "bird",
+    "flappy",
+    "cursor",
+    "ai",
+    "agent",
+    "waiting",
+    "entertainment",
+    "break",
+    "hooks",
+    "arcade",
+    "productivity"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/i-am-noamg/cursorbird"
+  },
+  "bugs": {
+    "url": "https://github.com/i-am-noamg/cursorbird/issues"
+  },
+  "homepage": "https://github.com/i-am-noamg/cursorbird#readme",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#FFD93D",
+    "theme": "light"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other",
+    "Entertainment",
+    "Productivity"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cursorBird.toggle",
+        "title": "Cursor Bird: Toggle"
+      },
+      {
+        "command": "cursorBird.start",
+        "title": "Cursor Bird: Start"
+      },
+      {
+        "command": "cursorBird.stop",
+        "title": "Cursor Bird: Stop"
+      },
+      {
+        "command": "cursorBird.setupHooks",
+        "title": "Cursor Bird: Setup Hooks"
+      },
+      {
+        "command": "cursorBird.resetBestScore",
+        "title": "Cursor Bird: Reset Best Score"
+      },
+      {
+        "command": "cursorBird.openSettings",
+        "title": "Cursor Bird: Configure Game Settings"
+      }
+    ],
+    "configuration": {
+      "title": "Cursor Bird",
+      "properties": {
+        "cursorBird.physics.gravity": {
+          "type": "number",
+          "default": 0.5,
+          "minimum": 0.1,
+          "maximum": 2,
+          "description": "How fast the bird falls (higher = harder)"
+        },
+        "cursorBird.physics.flapVelocity": {
+          "type": "number",
+          "default": -8,
+          "minimum": -15,
+          "maximum": -3,
+          "description": "How much the bird jumps when flapping (more negative = higher jump)"
+        },
+        "cursorBird.physics.pipeSpeed": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "How fast obstacles move (higher = harder)"
+        },
+        "cursorBird.physics.pipeSpawnInterval": {
+          "type": "number",
+          "default": 90,
+          "minimum": 30,
+          "maximum": 200,
+          "description": "Frames between new pipes (lower = more pipes)"
+        },
+        "cursorBird.pipes.gap": {
+          "type": "number",
+          "default": 120,
+          "minimum": 60,
+          "maximum": 200,
+          "description": "Vertical space between pipes (pixels)"
+        },
+        "cursorBird.pipes.width": {
+          "type": "number",
+          "default": 60,
+          "minimum": 30,
+          "maximum": 120,
+          "description": "Width of pipes (pixels)"
+        },
+        "cursorBird.pipes.margin": {
+          "type": "number",
+          "default": 40,
+          "minimum": 20,
+          "maximum": 100,
+          "description": "Minimum distance from screen edges (pixels)"
+        },
+        "cursorBird.bird.radius": {
+          "type": "number",
+          "default": 12,
+          "minimum": 5,
+          "maximum": 30,
+          "description": "Size of the bird (pixels)"
+        },
+        "cursorBird.bird.startPosition": {
+          "type": "number",
+          "default": 0.25,
+          "minimum": 0.1,
+          "maximum": 0.5,
+          "description": "Horizontal position of bird (0-1, as ratio of screen width)"
+        },
+        "cursorBird.visual.skyColor": {
+          "type": "string",
+          "default": "#87CEEB",
+          "description": "Background sky color (hex color)"
+        },
+        "cursorBird.visual.groundColor": {
+          "type": "string",
+          "default": "#7ec850",
+          "description": "Ground color (hex color)"
+        },
+        "cursorBird.visual.groundHeight": {
+          "type": "number",
+          "default": 40,
+          "minimum": 20,
+          "maximum": 100,
+          "description": "Height of ground (pixels)"
+        },
+        "cursorBird.visual.birdColor": {
+          "type": "string",
+          "default": "#FFD93D",
+          "description": "Bird color (hex color)"
+        },
+        "cursorBird.visual.pipeColor": {
+          "type": "string",
+          "default": "#2ecc71",
+          "description": "Pipe color (hex color)"
+        },
+        "cursorBird.visual.scoreFont": {
+          "type": "string",
+          "default": "bold 24px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+          "description": "Font style for score display"
+        },
+        "cursorBird.behavior.webviewColumn": {
+          "type": "string",
+          "enum": [
+            "One",
+            "Two",
+            "Three",
+            "Four",
+            "Five",
+            "Six",
+            "Seven",
+            "Eight",
+            "Nine",
+            "Active",
+            "Beside"
+          ],
+          "enumDescriptions": [
+            "Editor column 1 (leftmost)",
+            "Editor column 2",
+            "Editor column 3",
+            "Editor column 4",
+            "Editor column 5",
+            "Editor column 6",
+            "Editor column 7",
+            "Editor column 8",
+            "Editor column 9",
+            "Currently active editor column (replaces current file)",
+            "New column beside the active editor (creates split)"
+          ],
+          "default": "Beside",
+          "description": "Where to show the game window in the editor"
+        },
+        "cursorBird.behavior.pollingInterval": {
+          "type": "number",
+          "default": 2000,
+          "minimum": 500,
+          "maximum": 10000,
+          "description": "How often to check for AI agent activity (milliseconds)"
+        },
+        "cursorBird.behavior.staleThreshold": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 5000,
+          "maximum": 120000,
+          "description": "Timeout for inactive instances (milliseconds)"
+        },
+        "cursorBird.behavior.autoShow": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically show game when AI agent starts"
+        },
+        "cursorBird.controls.flapKey": {
+          "type": "string",
+          "enum": [
+            "Tab",
+            "Space",
+            "Enter",
+            "ArrowUp"
+          ],
+          "default": "Tab",
+          "description": "Key used to flap and start the game"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "vscode:uninstall": "node ./dist/uninstall.js",
+    "build": "tsc -p ./",
+    "postbuild": "node scripts/postbuild.js",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.95.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vscode/vsce": "^3.7.0",
+    "eslint": "^8.50.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "typescript": "^5.4.0"
+  },
+  "lint-staged": {
+    "src/**/*.ts": [
+      "eslint --fix"
+    ]
+  }
+}

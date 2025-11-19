@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{cspSource}} blob: data:; style-src {{cspSource}} 'unsafe-inline'; script-src 'nonce-{{nonce}}';" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="{{cssUri}}" rel="stylesheet" />
+    <title>Cursor Bird</title>
+    <style>html,body{padding:0;margin:0;height:100%;}</style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="overlay" class="overlay">Press TAB to Start</div>
+    <script nonce="{{nonce}}">
+      const vscode = acquireVsCodeApi();
+      // Store current flap key (updated by config)
+      let currentFlapKey = 'Tab';
+      
+      // Consolidated message handler for both extension and game messages
+      window.addEventListener('message', (event) => {
+        const msg = event.data || {};
+        
+        // Handle messages FROM extension (event.source !== window)
+        if (event.source !== window) {
+          if (msg.type === 'pause') window.postMessage({ __game_control: 'pause' }, '*');
+          if (msg.type === 'start') window.postMessage({ __game_control: 'start' }, '*');
+          if (msg.type === 'setBestScore') window.postMessage({ type: 'setBestScore', bestScore: msg.bestScore }, '*');
+          if (msg.type === 'resetBestScore') window.postMessage({ type: 'resetBestScore' }, '*');
+          if (msg.type === 'updateConfig' && msg.config) {
+            // Update current flap key for key event handling
+            if (msg.config.flapKey) {
+              currentFlapKey = msg.config.flapKey;
+            }
+            // Forward entire config to game.js
+            window.postMessage({ type: 'updateConfig', config: msg.config }, '*');
+          }
+        } 
+        // Handle messages FROM game code (event.source === window)
+        else {
+          if (msg.__game_started_by_tab) {
+            vscode.postMessage({ type: 'tabPressedToStart' });
+          }
+          if (msg.type === 'updateBestScore') {
+            vscode.postMessage({ type: 'updateBestScore', bestScore: msg.bestScore });
+          }
+        }
+      });
+      
+      window.addEventListener('keydown', (e) => {
+        if (e.key === currentFlapKey) {
+          e.preventDefault();
+        }
+      }, true);
+    </script>
+    <script src="{{jsUri}}" nonce="{{nonce}}"></script>
+  </body>
+</html>
+
+
