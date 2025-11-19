@@ -35,9 +35,12 @@ Play **Cursor Bird** while Cursor agents are running. The game automatically ope
 
 - 100% vibe coded
 - Tab to flap
+- Open source
 - Automatically opens when agents start; closes when all agents finish
 - Uses Cursor Hooks to automatically detect agent lifecycle
 - Workspace-specific best scores
+- Much better than doomscrolling
+- 100% not YC funded
 
 ## ⚡ Quick Start
 
