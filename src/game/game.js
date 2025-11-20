@@ -106,6 +106,30 @@
   const SCORE_PADDING = 16;
   const SCORE_Y = 32;
 
+  function calculateMaxVerticalReach() {
+    // Calculate maximum vertical distance bird can travel between pipes
+    // Time available: pipeSpawnInterval frames at bird's X position
+    const framesAvailable = config.pipeSpawnInterval;
+    
+    // Maximum upward distance with optimal flapping:
+    // One flap cycle: velocity goes from -8 (flap) to 0 (at peak)
+    // Time to peak: |flapVelocity| / gravity
+    const timeToPeak = Math.abs(config.flapVelocity) / config.gravity;
+    // Distance per flap: average velocity * time = (flapVelocity / 2) * time
+    const distancePerFlap = (config.flapVelocity / 2) * timeToPeak;
+    // Number of flaps possible
+    const maxFlaps = Math.floor(framesAvailable / timeToPeak);
+    const maxUpward = Math.abs(maxFlaps * distancePerFlap);
+    
+    // Maximum downward distance (starting from rest, falling):
+    // d = 0.5 * g * t^2
+    const maxDownward = 0.5 * config.gravity * framesAvailable * framesAvailable;
+    
+    // Use the smaller of the two as a conservative estimate
+    // Add some buffer (0.9) to make it challenging but not impossible
+    return Math.min(maxUpward, maxDownward) * 0.9;
+  }
+
   function resetGame() {
     birdX = width * config.birdStartXRatio;
     birdY = height / 2;
@@ -117,7 +141,43 @@
   }
 
   function spawnPipe() {
-    const gapY = Math.floor(Math.random() * (height - config.pipeGap - config.pipeMargin * 2)) + config.pipeMargin;
+    const groundTop = height - config.groundHeight;
+    
+    // Calculate valid range for gap position
+    const minGapY = config.pipeMargin;
+    const maxGapY = groundTop - config.pipeGap - config.pipeMargin;
+    
+    let gapY;
+    
+    if (pipes.length === 0) {
+      // First pipe: generate near bird's starting position for easier start
+      const birdStart = height / 2;
+      const maxReach = calculateMaxVerticalReach();
+      const minY = Math.max(minGapY, birdStart - maxReach);
+      const maxY = Math.min(maxGapY, birdStart + maxReach);
+      gapY = Math.floor(Math.random() * (maxY - minY)) + minY;
+    } else {
+      // Subsequent pipes: constrain based on previous pipe's gap
+      const lastPipe = pipes[pipes.length - 1];
+      const lastGapCenter = (lastPipe.top + lastPipe.bottom) / 2;
+      const maxReach = calculateMaxVerticalReach();
+      
+      // Calculate reachable range from last pipe's gap center
+      const minY = Math.max(minGapY, lastGapCenter - maxReach);
+      const maxY = Math.min(maxGapY, lastGapCenter + maxReach);
+      
+      // Ensure valid range
+      if (minY >= maxY) {
+        // Fallback: use previous gap position
+        gapY = lastPipe.top;
+      } else {
+        gapY = Math.floor(Math.random() * (maxY - minY)) + minY;
+      }
+    }
+    
+    // Clamp to valid bounds
+    gapY = Math.max(minGapY, Math.min(maxGapY, gapY));
+    
     pipes.push({ x: width + PIPE_SPAWN_OFFSET_PX, top: gapY, bottom: gapY + config.pipeGap, scored: false });
   }
 
