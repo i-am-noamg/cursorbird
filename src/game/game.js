@@ -146,10 +146,37 @@
     pipes = [];
     score = 0;
     dead = false;
-    spawnTimer = 0;
+    
+    // Pre-spawn pipes on reset to fill the screen
+    const pipeSpawnDistance = config.pipeSpawnInterval * config.pipeSpeed;
+    const birdInitialX = width * config.birdStartXRatio;
+    const firstPipeX = birdInitialX + pipeSpawnDistance;
+    
+    // Spawn pipes starting from firstPipeX until we cover and extend beyond the screen width
+    // This ensures pipes are visible as they scroll in from the right
+    let currentPipeX = firstPipeX;
+    while (currentPipeX <= width + pipeSpawnDistance) {
+      spawnPipeAtX(currentPipeX);
+      currentPipeX += pipeSpawnDistance;
+    }
+    
+    // Set spawn timer so next pipe spawns at the right time
+    // Calculate how many frames until we need the next pipe at the right edge
+    if (pipes.length > 0) {
+      const lastPipe = pipes[pipes.length - 1];
+      // We want the next pipe to spawn when the last pipe is pipeSpawnDistance away from the right edge
+      // Distance from last pipe to right edge: width - lastPipe.x
+      // We want to spawn when: (width - lastPipe.x) + frames * pipeSpeed = pipeSpawnDistance
+      // Solving: frames = (pipeSpawnDistance - (width - lastPipe.x)) / pipeSpeed
+      const distanceToRightEdge = width - lastPipe.x;
+      const framesUntilNextSpawn = Math.max(1, Math.ceil((pipeSpawnDistance - distanceToRightEdge) / config.pipeSpeed));
+      spawnTimer = framesUntilNextSpawn;
+    } else {
+      spawnTimer = config.pipeSpawnInterval;
+    }
   }
 
-  function spawnPipe() {
+  function spawnPipeAtX(pipeX) {
     const groundTop = height - config.groundHeight;
     
     // Calculate valid range for gap position
@@ -205,7 +232,24 @@
     // Clamp to valid bounds
     gapY = Math.max(minGapY, Math.min(maxGapY, gapY));
     
-    pipes.push({ x: width + PIPE_SPAWN_OFFSET_PX, top: gapY, bottom: gapY + config.pipeGap, scored: false });
+    pipes.push({ x: pipeX, top: gapY, bottom: gapY + config.pipeGap, scored: false });
+  }
+
+  function spawnPipe() {
+    // During gameplay, spawn pipes at the right edge of the screen
+    const pipeSpawnDistance = config.pipeSpawnInterval * config.pipeSpeed;
+    let pipeX;
+    
+    if (pipes.length === 0) {
+      // First pipe: one pipe spawn after bird's initial position
+      const birdInitialX = width * config.birdStartXRatio;
+      pipeX = birdInitialX + pipeSpawnDistance;
+    } else {
+      // During gameplay, spawn at the right edge of the screen
+      pipeX = width;
+    }
+    
+    spawnPipeAtX(pipeX);
   }
 
   function flap() {
