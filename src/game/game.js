@@ -112,18 +112,27 @@
     const framesAvailable = config.pipeSpawnInterval;
     
     // Maximum upward distance with optimal flapping:
-    // One flap cycle: velocity goes from -8 (flap) to 0 (at peak)
+    // One flap cycle: velocity goes from flapVelocity (e.g., -8) to 0 (at peak)
     // Time to peak: |flapVelocity| / gravity
     const timeToPeak = Math.abs(config.flapVelocity) / config.gravity;
-    // Distance per flap: average velocity * time = (flapVelocity / 2) * time
-    const distancePerFlap = (config.flapVelocity / 2) * timeToPeak;
+    
+    // Distance per flap using discrete Euler physics:
+    // In discrete Euler: v += gravity, then y += v each frame
+    // Sum of absolute velocities from frame 0 to frame (timeToPeak-1):
+    // |v0| + |v1| + ... + |v(n-1)| where v_i = flapVelocity + i*gravity
+    // This is an arithmetic series: n * (first + last) / 2
+    // where n = timeToPeak, first = |flapVelocity|, last = gravity
+    const distancePerFlap = timeToPeak * (Math.abs(config.flapVelocity) + config.gravity) / 2;
+    
     // Number of flaps possible
     const maxFlaps = Math.floor(framesAvailable / timeToPeak);
-    const maxUpward = Math.abs(maxFlaps * distancePerFlap);
+    const maxUpward = maxFlaps * distancePerFlap;
     
     // Maximum downward distance (starting from rest, falling):
-    // d = 0.5 * g * t^2
-    const maxDownward = 0.5 * config.gravity * framesAvailable * framesAvailable;
+    // Using discrete Euler: v starts at 0, increases by gravity each frame
+    // Distance = sum of velocities = 0 + gravity + 2*gravity + ... + (n-1)*gravity
+    // = gravity * (0 + 1 + 2 + ... + (n-1)) = gravity * n * (n-1) / 2
+    const maxDownward = config.gravity * framesAvailable * (framesAvailable - 1) / 2;
     
     // Use the smaller of the two as a conservative estimate
     // Add some buffer (0.9) to make it challenging but not impossible
