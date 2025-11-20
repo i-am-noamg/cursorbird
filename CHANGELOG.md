@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multiplayer mode for comparing scores with teammates
 - Achievement system
 
+## [0.0.2] - 2025-11-20
+
+### Added
+- Max vertical reach calculation for improved pipe spawning logic
+- Biased random generation for pipe gap positioning to improve gameplay experience
+- Discrete Euler physics for flap distance calculations, improving accuracy in vertical movement dynamics
+
+### Changed
+- Pipe spawning now positions pipes closer to the player for better experience on wide screens
+
 ## [0.0.1] - 2025-11-15
 
 ### 🎉 Initial Release
@@ -72,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **0.0.2** (2025-11-20) - Improved gameplay mechanics, physics accuracy, and pipe spawning logic
 - **0.0.1** (2025-11-15) - Initial release with core game and Cursor Hooks integration
 
 ---
