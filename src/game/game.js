@@ -384,10 +384,22 @@
   }
 
   function startFromPaused() {
+    const wasFirstStart = !startedOnce;
     startedOnce = true;
     dead = false;
     running = true;
-    resetGame();
+    // Only reset if game was dead (restart after death) or if pipes don't exist
+    if (wasFirstStart && pipes.length > 0) {
+      // First start and pipes already exist from initialization - don't reset
+      // Just reset the bird position and game state without re-spawning pipes
+      birdX = width * config.birdStartXRatio;
+      birdY = height / 2;
+      birdVY = 0;
+      score = 0;
+    } else {
+      // Reset everything (either restart after death or first start with no pipes)
+      resetGame();
+    }
   }
 
   function pauseGame() {
