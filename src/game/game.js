@@ -171,7 +171,25 @@
         // Fallback: use previous gap position
         gapY = lastPipe.top;
       } else {
-        gapY = Math.floor(Math.random() * (maxY - minY)) + minY;
+        // Biased random generation favoring far distances from last gap
+        // Use a U-shaped distribution that favors positions near minY and maxY
+        const random = Math.random();
+        let biasedRandom;
+        
+        // Use power of 3 for stronger bias toward edges
+        if (random < 0.5) {
+          // Lower half: bias toward 0 (minY, far from center)
+          // Map [0, 0.5) -> [0, 0.5] with strong bias toward 0
+          biasedRandom = 0.5 * Math.pow(random * 2, 3);
+        } else {
+          // Upper half: bias toward 1 (maxY, far from center)
+          // Map [0.5, 1) -> [0.5, 1] with strong bias toward 1
+          const normalized = (random - 0.5) * 2; // [0, 1)
+          biasedRandom = 0.5 + 0.5 * Math.pow(normalized, 3);
+        }
+        
+        // Map biased random value to the range [minY, maxY]
+        gapY = Math.floor(biasedRandom * (maxY - minY)) + minY;
       }
     }
     
