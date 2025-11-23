@@ -15,6 +15,12 @@ The ultimate productivity hack: Stay entertained while your AI agents get sh!t d
 
 ---
 
+Available now in Cursor's built-in Extension search!
+
+<img width="345" height="268" alt="image" src="https://github.com/user-attachments/assets/b59804fe-5d13-43a2-879a-e07434ef1b45" />
+
+---
+
 Like, Share & Subscribe -->
 
 <a href="https://www.buymeacoffee.com/noamgal" target="_blank"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=☕&slug=noamgal&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy Me A Coffee" style="height: 30px !important; width: auto !important; max-width: 150px !important;" /></a>
