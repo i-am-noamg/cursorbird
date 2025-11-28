@@ -1042,6 +1042,18 @@ try {
 type HookSetupSource = 'activate' | 'command';
 
 /**
+ * Toggles the auto-show setting and shows a status message.
+ */
+async function toggleAutoShow(): Promise<void> {
+    const config = vscode.workspace.getConfiguration('cursorBird');
+    const currentValue = config.get<boolean>('behavior.autoShow', true);
+    const newValue = !currentValue;
+    await config.update('behavior.autoShow', newValue, vscode.ConfigurationTarget.Global);
+    const status = newValue ? 'enabled' : 'disabled';
+    vscode.window.showInformationMessage(`Cursor Bird: Auto-show ${status}`);
+}
+
+/**
  * Handles the result of hook setup, showing appropriate messages and actions.
  * Used by both activate() and the setupHooks command to ensure consistent behavior.
  */
@@ -1145,7 +1157,8 @@ export async function activate(context: vscode.ExtensionContext) {
                 }),
                 vscode.commands.registerCommand('cursorBird.openSettings', () => {
                     vscode.commands.executeCommand('workbench.action.openSettings', '@ext:cursorbird.cursor-bird');
-                })
+                }),
+                vscode.commands.registerCommand('cursorBird.toggleAutoShow', toggleAutoShow)
             );
             return;
         }
@@ -1195,6 +1208,7 @@ export async function activate(context: vscode.ExtensionContext) {
             vscode.commands.registerCommand('cursorBird.openSettings', () => {
                 vscode.commands.executeCommand('workbench.action.openSettings', '@ext:cursorbird.cursor-bird');
             }),
+            vscode.commands.registerCommand('cursorBird.toggleAutoShow', toggleAutoShow),
             { dispose: () => tracker.dispose() },
             { dispose: () => webviews.dispose() }
         );

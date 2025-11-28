@@ -70,6 +70,10 @@
       {
         "command": "cursorBird.openSettings",
         "title": "Cursor Bird: Configure Game Settings"
+      },
+      {
+        "command": "cursorBird.toggleAutoShow",
+        "title": "Cursor Bird: Toggle Auto-Show"
       }
     ],
     "configuration": {

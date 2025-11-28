@@ -80,6 +80,7 @@ That's it! The extension automatically sets up everything you need.
 - **Cursor Bird: Toggle** - Manually toggle the game
 - **Cursor Bird: Start** - Manually start the game
 - **Cursor Bird: Stop** - Manually stop the game
+- **Cursor Bird: Toggle Auto-Show** - Toggle automatic game opening when agents start
 - **Cursor Bird: Reset Best Score** - Reset the best score for the current workspace
 - **Cursor Bird: Setup Hooks** - Manually configure global Cursor Hooks (in `~/.cursor/hooks.json`)
 - **Cursor Bird: Configure Game Settings** - Open extension settings
