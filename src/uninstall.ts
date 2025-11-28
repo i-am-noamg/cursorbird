@@ -1,78 +1,67 @@
 #!/usr/bin/env node
 /**
  * Uninstall cleanup script for Cursor Bird extension
- * 
+ *
  * This script is called when the extension is UNINSTALLED (not just disabled).
  * It cleans up files and configurations that persist outside the extension directory.
- * 
+ *
  * CLEANUP RESPONSIBILITIES:
- * 
- * This script (uninstall.ts):
- * - Hook scripts in user directory (~/.cursor/cursor-bird-hooks/)
+ *
+ * This script (uninstall.ts) cleans up:
  * - Hook entries in global hooks.json (~/.cursor/hooks.json)
- * - Hook entries in workspace hooks.json (.cursor/hooks.json)
  * - Workspace status files (as fallback if deactivate() didn't run)
  * - Temp files (as fallback if deactivate() didn't run)
- * 
+ *
  * The deactivate() function in extension.ts (runs on disable/uninstall/shutdown):
  * - Workspace status files ({workspace}/.cursor/cursor-bird-status.json)
  * - Temp files (.tmp variants)
- * 
+ *
  * Cursor automatically removes:
- * - Extension directory (including extension's dist/hook/ scripts)
+ * - Extension directory (including extension's dist/hook/ scripts:
+ *   hook.sh, hook-stop.sh, hook-node.js, hook-stop-node.js)
  * - Extension state storage (best scores)
- * 
+ *
  * PATHS HANDLED:
- * - Global: ~/.cursor/ (HOME or USERPROFILE) - for hooks configuration only
+ * - Global: ~/.cursor/ (HOME or USERPROFILE) - hooks config
  * - Workspace: {workspace}/.cursor/ (current working directory) - for status files
- * 
+ *
  * NOTE: All status files are workspace-only. No global status files are used.
+ * NOTE: Hook scripts are stored in the extension directory.
  */
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Helper function to get home directory
+function getHomeDirectory(): string | undefined {
+    return process.env.HOME || process.env.USERPROFILE;
+}
+
 interface HooksJson {
     version: number;
     hooks: {
-        beforeSubmitPrompt?: Array<{ command: string }>;
-        stop?: Array<{ command: string }>;
+        beforeSubmitPrompt?: Array<{ command: string; [key: string]: unknown }>;
+        stop?: Array<{ command: string; [key: string]: unknown }>;
+        [key: string]: unknown;  // Preserve other hook types
     };
+    [key: string]: unknown;  // Preserve other top-level fields
 }
 
 console.warn('Cursor Bird: Running uninstall cleanup...');
 
-const extensionName = 'cursor-bird';
+const EXTENSION_NAME = 'cursor-bird';
 let cleanupCount = 0;
 
-// 1. Remove hook scripts from user directory
-try {
-    const homeDir = process.env.HOME || process.env.USERPROFILE;
-    if (homeDir) {
-        const userScriptDir = path.join(homeDir, '.cursor', 'cursor-bird-hooks');
-        if (fs.existsSync(userScriptDir)) {
-            try {
-                fs.rmSync(userScriptDir, { recursive: true, force: true });
-                console.warn(`✓ Removed hook script directory and all contents: ${userScriptDir}`);
-                cleanupCount++;
-            } catch (dirErr) {
-                console.error(`  ✗ Failed to remove directory ${userScriptDir}:`, dirErr);
-            }
-        } else {
-            console.warn('  No hook scripts directory found (may have been cleaned already)');
-        }
-    }
-} catch (err) {
-    console.error('✗ Error cleaning up hook scripts:', err);
-}
+// Hook scripts in extension directory are removed by Cursor automatically
 
 // 2. Remove hooks from global hooks.json
+// Removes any hook entries containing "cursor-bird" in the command path (handles all versions)
 try {
-    const homeDir = process.env.HOME || process.env.USERPROFILE;
+    const homeDir = getHomeDirectory();
     if (homeDir) {
         const globalHooksFile = path.join(homeDir, '.cursor', 'hooks.json');
         if (fs.existsSync(globalHooksFile)) {
             try {
-            const content = fs.readFileSync(globalHooksFile, 'utf-8');
+                const content = fs.readFileSync(globalHooksFile, 'utf-8');
                 const hooks = JSON.parse(content) as HooksJson;
                 
                 let modified = false;
@@ -80,29 +69,33 @@ try {
                 
                 // Remove beforeSubmitPrompt hooks
                 if (hooks.hooks?.beforeSubmitPrompt) {
-                    const originalLength = hooks.hooks.beforeSubmitPrompt.length;
-                    hooks.hooks.beforeSubmitPrompt = hooks.hooks.beforeSubmitPrompt.filter(h => 
-                        !(h.command && h.command.includes(extensionName))
+                    const toRemove = hooks.hooks.beforeSubmitPrompt.filter(h => 
+                        h.command && h.command.includes(EXTENSION_NAME)
                     );
-                    const removed = originalLength - hooks.hooks.beforeSubmitPrompt.length;
-                    if (removed > 0) {
+                    if (toRemove.length > 0) {
+                        toRemove.forEach(h => console.warn(`  Removing start hook: ${h.command}`));
+                        hooks.hooks.beforeSubmitPrompt = hooks.hooks.beforeSubmitPrompt.filter(h => 
+                            !(h.command && h.command.includes(EXTENSION_NAME))
+                        );
                         modified = true;
-                        removedCount += removed;
-                        console.warn(`✓ Removed ${removed} beforeSubmitPrompt hook(s) from global hooks.json`);
+                        removedCount += toRemove.length;
+                        console.warn(`✓ Removed ${toRemove.length} beforeSubmitPrompt hook(s) from global hooks.json`);
                     }
                 }
                 
                 // Remove stop hooks
                 if (hooks.hooks?.stop) {
-                    const originalLength = hooks.hooks.stop.length;
-                    hooks.hooks.stop = hooks.hooks.stop.filter(h => 
-                        !(h.command && h.command.includes(extensionName))
+                    const toRemove = hooks.hooks.stop.filter(h => 
+                        h.command && h.command.includes(EXTENSION_NAME)
                     );
-                    const removed = originalLength - hooks.hooks.stop.length;
-                    if (removed > 0) {
+                    if (toRemove.length > 0) {
+                        toRemove.forEach(h => console.warn(`  Removing stop hook: ${h.command}`));
+                        hooks.hooks.stop = hooks.hooks.stop.filter(h => 
+                            !(h.command && h.command.includes(EXTENSION_NAME))
+                        );
                         modified = true;
-                        removedCount += removed;
-                        console.warn(`✓ Removed ${removed} stop hook(s) from global hooks.json`);
+                        removedCount += toRemove.length;
+                        console.warn(`✓ Removed ${toRemove.length} stop hook(s) from global hooks.json`);
                     }
                 }
                 
@@ -111,7 +104,7 @@ try {
                     console.warn(`✓ Updated global hooks.json: ${globalHooksFile}`);
                     cleanupCount += removedCount;
                 } else {
-                    console.warn('  No hooks found in global hooks.json (may have been cleaned already)');
+                    console.warn('  No cursor-bird hooks found in global hooks.json');
                 }
             } catch (parseErr) {
                 console.error(`  ✗ Failed to parse global hooks.json:`, parseErr);
@@ -124,63 +117,11 @@ try {
     console.error('✗ Error cleaning up global hooks.json:', err);
 }
 
-// 3. Remove hooks from workspace hooks.json (current working directory)
-try {
-    const workspaceFolder = process.cwd();
-    const hooksFile = path.join(workspaceFolder, '.cursor', 'hooks.json');
-    if (fs.existsSync(hooksFile)) {
-        try {
-            const content = fs.readFileSync(hooksFile, 'utf-8');
-            const hooks = JSON.parse(content) as HooksJson;
-            
-            let modified = false;
-            let removedCount = 0;
-            
-            // Remove beforeSubmitPrompt hooks
-            if (hooks.hooks?.beforeSubmitPrompt) {
-                const originalLength = hooks.hooks.beforeSubmitPrompt.length;
-                hooks.hooks.beforeSubmitPrompt = hooks.hooks.beforeSubmitPrompt.filter(h => 
-                    !(h.command && h.command.includes(extensionName))
-                );
-                const removed = originalLength - hooks.hooks.beforeSubmitPrompt.length;
-                if (removed > 0) {
-                    modified = true;
-                    removedCount += removed;
-                    console.warn(`✓ Removed ${removed} beforeSubmitPrompt hook(s) from workspace hooks.json`);
-                }
-            }
-            
-            // Remove stop hooks
-            if (hooks.hooks?.stop) {
-                const originalLength = hooks.hooks.stop.length;
-                hooks.hooks.stop = hooks.hooks.stop.filter(h => 
-                    !(h.command && h.command.includes(extensionName))
-                );
-                const removed = originalLength - hooks.hooks.stop.length;
-                if (removed > 0) {
-                    modified = true;
-                    removedCount += removed;
-                    console.warn(`✓ Removed ${removed} stop hook(s) from workspace hooks.json`);
-                }
-            }
-            
-            if (modified) {
-                fs.writeFileSync(hooksFile, JSON.stringify(hooks, null, 2));
-                console.warn(`✓ Updated workspace hooks.json: ${hooksFile}`);
-                cleanupCount += removedCount;
-            }
-        } catch (parseErr) {
-            console.error(`  ✗ Failed to parse workspace hooks.json:`, parseErr);
-        }
-    } else {
-        console.warn('  No workspace hooks.json found');
-    }
-    } catch (err) {
-    // Workspace hooks might not exist, that's fine
-    console.warn('  No workspace hooks to clean up');
-}
-
-// 4. Clean up workspace status files (fallback - deactivate() should have handled this)
+// 3. Clean up workspace status files (BEST EFFORT)
+// NOTE: process.cwd() may not be the user's workspace during uninstall.
+// This cleanup will work if the uninstall runs from the workspace directory,
+// but may miss files if run from elsewhere. This is acceptable - the deactivate()
+// function handles cleanup in normal cases, and status files are harmless if orphaned.
 try {
     const workspaceFolder = process.cwd();
     const workspaceStatusFile = path.join(workspaceFolder, '.cursor', 'cursor-bird-status.json');

@@ -58,6 +58,10 @@ Play **Cursor Bird** while Cursor agents are running. The game automatically ope
 3. Search for "Cursor Bird"
 4. Click Install
 5. Restart Cursor
+6. **Add `.cursor/` to your `.gitignore`** to avoid committing status files:
+   ```gitignore
+   .cursor/
+   ```
 
 **Method 2: Manual Installation**
 1. Download the `.vsix` file from [GitHub Releases](https://github.com/i-am-noamg/cursorbird/releases/latest)
@@ -65,6 +69,10 @@ Play **Cursor Bird** while Cursor agents are running. The game automatically ope
 3. Type "Install from VSIX"
 4. Select the downloaded file
 5. Restart Cursor
+6. **Add `.cursor/` to your `.gitignore`** to avoid committing status files:
+   ```gitignore
+   .cursor/
+   ```
 
 ### Usage
 
@@ -75,9 +83,12 @@ Once installed:
 
 That's it! The extension automatically sets up everything you need.
 
-## Requirements
+## ⚠️ Requirements
 
-- **Node.js** must be installed and available in your PATH (required for hook scripts to run)
+- **Node.js** must be installed and available in your PATH
+  - Hook scripts use Node.js to detect agent start/stop
+  - Verify with `node --version` in your terminal
+  - If missing, the game won't auto-open (manual commands still work)
 
 ## Setup
 
@@ -86,59 +97,10 @@ The extension will automatically configure Cursor Hooks globally during installa
 ### Automatic Setup (Global Hooks)
 
 The extension automatically:
-1. **Generates hook scripts** (stored in extension directory or `~/.cursor/cursor-bird-hooks/` if extension dir is read-only)
+1. **Generates hook scripts** (stored in extension directory: `{extension}/dist/hook/`)
 2. **Configures hooks globally** in `~/.cursor/hooks.json` (or `%USERPROFILE%\.cursor\hooks.json` on Windows)
 
 The hook scripts are **workspace-aware** - they automatically detect which workspace they're running in and track agents separately for each workspace.
-
-If you prefer workspace-specific hooks instead, see the [Manual Workspace-Specific Setup](#manual-workspace-specific-setup) section below.
-
-### Manual Workspace-Specific Setup
-
-If you prefer to set up hooks on a per-workspace basis instead of globally, follow these steps:
-
-1. **Create or edit `.cursor/hooks.json` in your workspace:**
-
-```json
-{
-  "version": 1,
-  "hooks": {
-    "beforeSubmitPrompt": [
-      {
-        "command": "/path/to/extension/dist/hook/hook.sh"
-      }
-    ],
-    "stop": [
-      {
-        "command": "/path/to/extension/dist/hook/hook-stop.sh"
-      }
-    ]
-  }
-}
-```
-
-**On Windows**, use `hook.bat` and `hook-stop.bat` instead of `.sh` files.
-
-2. **Find the extension path:**
-   - Open Command Palette (Cmd/Ctrl+Shift+P)
-   - Run "Extensions: Show Installed Extensions"
-   - Find "Cursor Bird" and note the extension path
-   - Or check: `~/.vscode/extensions/` (or `%USERPROFILE%\.vscode\extensions\` on Windows)
-   - Hook scripts are typically at: `/path/to/extension/dist/hook/`
-
-3. **Make scripts executable** (Unix/Mac only):
-   ```bash
-   chmod +x /path/to/extension/dist/hook/hook.sh
-   chmod +x /path/to/extension/dist/hook/hook-stop.sh
-   ```
-
-4. **Restart Cursor** for hooks to take effect.
-
-**Note:** 
-- The hook scripts require **Node.js** to be available in your PATH
-- The hook scripts are workspace-aware and will track agents separately for each workspace
-- You'll need to repeat this setup for each workspace where you want the game enabled
-- Add `.cursor/` to your `.gitignore` to avoid committing these files
 
 ## Commands
 - **Cursor Bird: Toggle** - Manually toggle the game
@@ -163,19 +125,16 @@ Access settings via the command palette or search for "Cursor Bird" in Cursor se
 During installation and use, the extension creates the following files:
 
 ### Hook Scripts (Persistent)
-Located in either:
-- Extension directory: `{extension}/dist/hook/` (preferred)
-- OR user directory: `~/.cursor/cursor-bird-hooks/` (fallback if extension dir is read-only)
+Located in extension directory: `{extension}/dist/hook/`
 
 Files created:
 - `hook.sh` / `hook.bat` - Start hook wrapper script
-- `hook-stop.sh` / `hook-stop.bat` - Stop hook wrapper script  
+- `hook-stop.sh` / `hook-stop.bat` - Stop hook wrapper script
 - `hook-node.js` - Node.js logic for detecting agent start
 - `hook-stop-node.js` - Node.js logic for detecting agent stop
 
 ### Hook Configuration (Persistent)
 - Global: `~/.cursor/hooks.json` - Hook entries added to this file
-- Workspace (optional): `{workspace}/.cursor/hooks.json` - Only if you manually set up workspace-specific hooks
 
 ### Status Files (Temporary)
 Created during runtime, cleaned up on disable:
@@ -200,13 +159,10 @@ The extension automatically cleans up runtime state:
 ### When You **Uninstall** the Extension
 
 The extension performs complete cleanup:
-- ✅ Removes all hook scripts from `~/.cursor/cursor-bird-hooks/` (if scripts were stored in user directory)
-- ✅ Removes the hook scripts directory itself
 - ✅ Removes hook entries from `~/.cursor/hooks.json` (global hooks file)
-- ✅ Removes hook entries from `{workspace}/.cursor/hooks.json` (workspace hooks file, if present)
 - ✅ Removes any remaining status tracking files (fallback cleanup)
 - ✅ Cursor automatically removes:
-  - Extension directory (including any hook scripts in `{extension}/dist/hook/`)
+  - Extension directory (including hook scripts in `{extension}/dist/hook/`)
   - Best score storage for all workspaces
 
 **Note:** The uninstall cleanup happens automatically via Cursor's `vscode:uninstall` hook. You may need to restart Cursor to see the cleanup complete. This is a Cursor platform requirement.
@@ -251,8 +207,6 @@ The hook scripts are **workspace-aware** - they automatically detect which works
 
 **No!** The extension automatically configures **global hooks** in `~/.cursor/hooks.json` during installation. These hooks work across all workspaces automatically, while still tracking agents separately for each workspace.
 
-If you prefer workspace-specific hooks instead, you can manually set them up following the [Manual Workspace-Specific Setup](#manual-workspace-specific-setup) instructions. In that case, yes, you'll need to set them up in each workspace where you want the game.
-
 ### What files does the extension create in my workspace?
 
 For a complete list of all files created, see the [What the Extension Creates](#what-the-extension-creates) section above.
@@ -260,7 +214,6 @@ For a complete list of all files created, see the [What the Extension Creates](#
 Within your workspace directory specifically, the extension creates:
 - `.cursor/cursor-bird-status.json` - Temporary status file for tracking active agents (automatically cleaned up when you disable the extension)
 - `.cursor/cursor-bird-status.json.tmp` - Temporary file used for atomic writes (also cleaned up on disable)
-- `.cursor/hooks.json` - Hook configuration (only if you manually set up workspace-specific hooks instead of using global hooks)
 
 **Important**: You should add `.cursor/` to your `.gitignore` to avoid committing these files:
 
@@ -270,26 +223,9 @@ Within your workspace directory specifically, the extension creates:
 
 All workspace files are automatically cleaned up when you disable or uninstall the extension.
 
-### How do I switch from global hooks to workspace-specific hooks?
-
-1. Remove the global hooks by deleting or editing `~/.cursor/hooks.json`
-2. Follow the [Manual Workspace-Specific Setup](#manual-workspace-specific-setup) instructions for each workspace
-3. Restart Cursor
-
 ### Can I disable the game for specific workspaces?
 
-Yes! You have two options:
-
-1. **Disable auto-show**: Set `cursorBird.behavior.autoShow` to `false` in workspace settings. The game won't automatically open, but you can still start it manually.
-
-2. **Override hooks**: Create an empty `.cursor/hooks.json` in that workspace:
-   ```json
-   {
-     "version": 1,
-     "hooks": {}
-   }
-   ```
-   Cursor will use the workspace hooks (empty) instead of the global ones for that workspace.
+Yes! Set `cursorBird.behavior.autoShow` to `false` in workspace settings. The game won't automatically open, but you can still start it manually with the "Cursor Bird: Start" command.
 
 ---
 

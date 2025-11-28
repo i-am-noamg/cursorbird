@@ -4,7 +4,13 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { TextDecoder } from 'util';
 
+// Helper function to get home directory
+function getHomeDirectory(): string | undefined {
+    return process.env.HOME || process.env.USERPROFILE;
+}
+
 // Constants
+const EXTENSION_NAME = 'cursor-bird';
 const PANEL_REVEAL_DELAY_MS = 100;
 const STATUS_FILE_READ_DELAY_MS = 100;
 const NONCE_BYTES = 16;
@@ -23,9 +29,11 @@ interface WebviewMessage {
 interface HooksJson {
     version: number;
     hooks: {
-        beforeSubmitPrompt?: Array<{ command: string }>;
-        stop?: Array<{ command: string }>;
+        beforeSubmitPrompt?: Array<{ command: string; [key: string]: unknown }>;
+        stop?: Array<{ command: string; [key: string]: unknown }>;
+        [key: string]: unknown;  // Preserve other hook types
     };
+    [key: string]: unknown;  // Preserve other top-level fields
 }
 
 interface HookCheckResult {
@@ -35,12 +43,14 @@ interface HookCheckResult {
         start?: string;
         stop?: string;
     };
+    needsUpdate?: boolean;  // True if hooks exist but point to stale/missing scripts
 }
 
 interface HookSetupResult {
     success: boolean;
     message: string;
     hookScriptPath?: string;
+    modified?: boolean; // True if hooks.json was actually modified
 }
 
 interface ScriptEnsureResult {
@@ -544,7 +554,7 @@ class HookManager {
         this.outputChannel.show();
     }
 
-    private async checkNodeJs(): Promise<boolean> {
+    public async checkNodeJs(): Promise<boolean> {
         try {
             // Dynamic import to avoid top-level require
             const childProcess = await import('child_process');
@@ -580,53 +590,85 @@ class HookManager {
         }
     }
 
-    public async checkHooksExist(): Promise<HookCheckResult> {
-        try {
-            const hookScriptPath = await this.getOrCreateHookScriptPath();
-            if (!hookScriptPath) {
-                log(this.outputChannel, 'checkHooksExist: Could not determine hook script path');
-                return { exists: false };
-            }
+    /**
+     * Find cursor-bird hooks in the hooks configuration
+     */
+    private findCursorBirdHooks(hooks: HooksJson, extensionName: string): { startHook?: { command: string }, stopHook?: { command: string } } {
+        const startHook = hooks.hooks?.beforeSubmitPrompt?.find(h =>
+            h.command && h.command.includes(extensionName)
+        );
+        const stopHook = hooks.hooks?.stop?.find(h =>
+            h.command && h.command.includes(extensionName)
+        );
+        return { startHook, stopHook };
+    }
 
-            const extensionName = 'cursor-bird';
+    /**
+     * Validate if hooks point to correct paths and files exist
+     */
+    private validateHookPaths(
+        startHook: { command: string } | undefined,
+        stopHook: { command: string } | undefined,
+        expectedStart: string,
+        expectedStop: string
+    ): { needsUpdate: boolean } {
+        const hasStart = !!startHook;
+        const hasStop = !!stopHook;
+
+        // Check if hooks point to CURRENT extension's scripts
+        const startIsCorrect = startHook?.command === expectedStart;
+        const stopIsCorrect = stopHook?.command === expectedStop;
+        const startExists = startHook?.command ? fs.existsSync(startHook.command) : false;
+        const stopExists = stopHook?.command ? fs.existsSync(stopHook.command) : false;
+
+        log(this.outputChannel, `checkHooksExist: startHook="${startHook?.command}" correct=${startIsCorrect} exists=${startExists}`);
+        log(this.outputChannel, `checkHooksExist: stopHook="${stopHook?.command}" correct=${stopIsCorrect} exists=${stopExists}`);
+
+        const needsUpdate = !hasStart || !hasStop || !startIsCorrect || !stopIsCorrect || !startExists || !stopExists;
+        return { needsUpdate };
+    }
+
+    /**
+     * Check if hooks exist and are valid (scripts exist at referenced paths).
+     * Returns needsUpdate=true if hooks exist but point to stale/missing scripts.
+     */
+    public async checkHooksExist(expectedScriptPath: string): Promise<HookCheckResult> {
+        try {
+            const hookScriptPath = expectedScriptPath;
+
+            const extensionName = EXTENSION_NAME;
             const { startScript, stopScript } = this.getHookScriptPaths(hookScriptPath);
-            log(this.outputChannel, `checkHooksExist: Looking for hooks matching extensionName="${extensionName}" or paths: start="${startScript}", stop="${stopScript}"`);
-            const hookPaths: { start?: string; stop?: string } = {};
+            log(this.outputChannel, `checkHooksExist: Expected paths: start="${startScript}", stop="${stopScript}"`);
             
             // Check global hooks first (since auto-install now uses global)
-            const homeDir = process.env.HOME || process.env.USERPROFILE;
+            const homeDir = getHomeDirectory();
             if (homeDir) {
                 const globalHooksFile = path.join(homeDir, '.cursor', 'hooks.json');
                 log(this.outputChannel, `checkHooksExist: Checking global hooks file: ${globalHooksFile}`);
                 if (fs.existsSync(globalHooksFile)) {
                     try {
                         const content = fs.readFileSync(globalHooksFile, 'utf-8');
-                        log(this.outputChannel, `checkHooksExist: Raw file content length: ${content.length} bytes`);
                         const hooks = JSON.parse(content) as HooksJson;
-                        log(this.outputChannel, `checkHooksExist: Parsed JSON: ${JSON.stringify(hooks)}`);
-                        log(this.outputChannel, `checkHooksExist: hooks.hooks exists: ${!!hooks.hooks}, type: ${typeof hooks.hooks}`);
                         log(this.outputChannel, `checkHooksExist: Found ${hooks.hooks?.beforeSubmitPrompt?.length || 0} beforeSubmitPrompt hooks, ${hooks.hooks?.stop?.length || 0} stop hooks`);
-                        
-                        const startHook = hooks.hooks?.beforeSubmitPrompt?.find(h => 
-                            h.command && (h.command.includes(extensionName) || h.command === startScript)
-                        );
-                        const stopHook = hooks.hooks?.stop?.find(h => 
-                            h.command && (h.command.includes(extensionName) || h.command === stopScript)
-                        );
-                        
-                        log(this.outputChannel, `checkHooksExist: startHook found=${!!startHook}, stopHook found=${!!stopHook}`);
-                        if (startHook) {
-                            log(this.outputChannel, `checkHooksExist: startHook command="${startHook.command}"`);
-                        }
-                        if (stopHook) {
-                            log(this.outputChannel, `checkHooksExist: stopHook command="${stopHook.command}"`);
-                        }
-                        
-                        if (startHook && stopHook) {
-                            hookPaths.start = startHook.command;
-                            hookPaths.stop = stopHook.command;
-                            log(this.outputChannel, `Found hooks in global: start=${startHook.command}, stop=${stopHook.command}`);
-                            return { exists: true, location: 'global', hookPaths };
+
+                        // Find any cursor-bird hooks
+                        const { startHook, stopHook } = this.findCursorBirdHooks(hooks, extensionName);
+
+                        if (startHook || stopHook) {
+                            const hookPaths = {
+                                start: startHook?.command,
+                                stop: stopHook?.command
+                            };
+
+                            const { needsUpdate } = this.validateHookPaths(startHook, stopHook, startScript, stopScript);
+
+                            if (needsUpdate) {
+                                log(this.outputChannel, `checkHooksExist: Hooks exist but need update`);
+                                return { exists: true, location: 'global', hookPaths, needsUpdate: true };
+                            }
+
+                            log(this.outputChannel, `checkHooksExist: Hooks are valid and up-to-date`);
+                            return { exists: true, location: 'global', hookPaths, needsUpdate: false };
                         }
                     } catch (err) {
                         const error = err as Error;
@@ -636,33 +678,6 @@ class HookManager {
                     log(this.outputChannel, `checkHooksExist: Global hooks file does not exist`);
                 }
             }
-            
-            // Check workspace hooks (for users who manually set up workspace-specific hooks)
-            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-            if (workspaceFolder) {
-                const cursorDir = vscode.Uri.joinPath(workspaceFolder.uri, '.cursor');
-                const hooksFile = vscode.Uri.joinPath(cursorDir, 'hooks.json');
-                try {
-                    const decoder = new TextDecoder('utf-8');
-                    const data = await vscode.workspace.fs.readFile(hooksFile);
-                    const content = decoder.decode(data);
-                    const hooks = JSON.parse(content) as HooksJson;
-                    const startHook = hooks.hooks?.beforeSubmitPrompt?.find(h => 
-                        h.command && (h.command.includes(extensionName) || h.command === startScript)
-                    );
-                    const stopHook = hooks.hooks?.stop?.find(h => 
-                        h.command && (h.command.includes(extensionName) || h.command === stopScript)
-                    );
-                    if (startHook && stopHook) {
-                        hookPaths.start = startHook.command;
-                        hookPaths.stop = stopHook.command;
-                        log(this.outputChannel, `Found hooks in workspace: start=${startHook.command}, stop=${stopHook.command}`);
-                        return { exists: true, location: 'workspace', hookPaths };
-                    }
-                } catch {
-                    // File doesn't exist or invalid
-                }
-            }
 
             return { exists: false };
         } catch {
@@ -670,7 +685,11 @@ class HookManager {
         }
     }
 
-    public async setupHooks(): Promise<HookSetupResult> {
+    /**
+     * Sets up hooks, ensuring scripts exist first.
+     * If scriptPath is provided, uses it; otherwise creates/gets it.
+     */
+    public async setupHooks(scriptPath?: string): Promise<HookSetupResult> {
         try {
             // Check if Node.js is available in PATH
             const hasNodeJs = await this.checkNodeJs();
@@ -682,8 +701,8 @@ class HookManager {
                 };
             }
             
-            // Try to write scripts to extension directory first, fallback to user directory
-            const hookScriptPath = await this.getOrCreateHookScriptPath();
+            // Get or use provided script path
+            const hookScriptPath = scriptPath || await this.getOrCreateHookScriptPath();
             if (!hookScriptPath) {
                 return { success: false, message: 'Could not determine where to write hook scripts' };
             }
@@ -692,19 +711,23 @@ class HookManager {
             this.outputChannel.show(true); // Ensure visible
 
             // Ensure hook script exists and is executable
+            // Note: Script file updates don't affect the 'modified' flag below
+            // 'modified' only reflects changes to hooks.json, not script files
             await this.ensureHookScript(hookScriptPath);
             log(this.outputChannel, 'Hook scripts created/verified');
 
             // Always use global hooks
-            const homeDir = process.env.HOME || process.env.USERPROFILE;
+            const homeDir = getHomeDirectory();
             if (homeDir) {
                 const globalCursorDir = path.join(homeDir, '.cursor');
                 const globalHooksFile = path.join(globalCursorDir, 'hooks.json');
-                await this.setupHooksFileGlobal(globalHooksFile, hookScriptPath);
-                return { 
-                    success: true, 
+                // 'modified' is true only if hooks.json was actually changed
+                const modified = await this.setupHooksFileGlobal(globalHooksFile, hookScriptPath);
+                return {
+                    success: true,
                     message: `Hooks configured globally: ${globalHooksFile}`,
-                    hookScriptPath 
+                    hookScriptPath,
+                    modified
                 };
             }
 
@@ -717,36 +740,52 @@ class HookManager {
         }
     }
 
+    /**
+     * Checks hooks and sets them up if needed. Returns the setup result and check result.
+     * This consolidates the common flow used in both activate() and the setupHooks command.
+     */
+    public async setupHooksIfNeeded(): Promise<{ setupResult: HookSetupResult; checkResult: HookCheckResult }> {
+        // Ensure scripts exist first
+        const scriptsResult = await this.ensureScriptsExist();
+        if (!scriptsResult.success || !scriptsResult.scriptPath) {
+            return {
+                setupResult: { success: false, message: 'Failed to ensure hook scripts exist' },
+                checkResult: { exists: false }
+            };
+        }
+
+        // Check if hooks exist and are valid
+        const checkResult = await this.checkHooksExist(scriptsResult.scriptPath);
+        
+        // Setup hooks if they don't exist or need updating
+        if (!checkResult.exists || checkResult.needsUpdate) {
+            const setupResult = await this.setupHooks(scriptsResult.scriptPath);
+            return { setupResult, checkResult };
+        }
+
+        // Hooks are already correctly configured
+        return {
+            setupResult: {
+                success: true,
+                message: `Hooks already configured correctly (${checkResult.location})`,
+                hookScriptPath: scriptsResult.scriptPath,
+                modified: false
+            },
+            checkResult
+        };
+    }
+
     private async getOrCreateHookScriptPath(): Promise<string | undefined> {
         const extPath = this.context.extensionPath;
         const scriptName = process.platform === 'win32' ? 'hook.bat' : 'hook.sh';
         const extScriptPath = path.join(extPath, 'dist', 'hook', scriptName);
 
-        // Try extension directory first (works in dev, might be read-only in VSIX)
-        try {
-            const scriptDir = path.dirname(extScriptPath);
-            if (!fs.existsSync(scriptDir)) {
-                fs.mkdirSync(scriptDir, { recursive: true });
-            }
-            // Test write
-            const testFile = path.join(scriptDir, '.test-write');
-            fs.writeFileSync(testFile, 'test');
-            fs.unlinkSync(testFile);
-            return extScriptPath;
-        } catch {
-            // Extension dir is read-only, use user directory
-            log(this.outputChannel, 'Extension directory is read-only, using user directory for scripts');
-            const homeDir = process.env.HOME || process.env.USERPROFILE;
-            if (homeDir) {
-                const userScriptDir = path.join(homeDir, '.cursor', 'cursor-bird-hooks');
-                if (!fs.existsSync(userScriptDir)) {
-                    fs.mkdirSync(userScriptDir, { recursive: true });
-                }
-                return path.join(userScriptDir, scriptName);
-            }
+        const scriptDir = path.dirname(extScriptPath);
+        if (!fs.existsSync(scriptDir)) {
+            fs.mkdirSync(scriptDir, { recursive: true });
         }
 
-        return undefined;
+        return extScriptPath;
     }
 
     private generateNodeHookScript(delta: number): string {
@@ -875,31 +914,22 @@ try {
             : `#!/bin/sh\nnode "${nodeScriptPathEscaped}"\n`;
 
         // Stop script that decrements active count
-        const stopScriptPath = scriptPath.replace(/hook\.(sh|bat)$/, `hook-stop.${isWindows ? 'bat' : 'sh'}`);
+        const { startScript, stopScript } = this.getHookScriptPaths(scriptPath);
         const stopScriptContent = isWindows
             ? `@echo off\r\nnode "${stopNodeScriptPathEscaped}"\r\n`
             : `#!/bin/sh\nnode "${stopNodeScriptPathEscaped}"\n`;
 
-        writeFileIfChanged(scriptPath, scriptContent);
-        writeFileIfChanged(stopScriptPath, stopScriptContent);
+        writeFileIfChanged(startScript, scriptContent);
+        writeFileIfChanged(stopScript, stopScriptContent);
 
         if (!isWindows) {
-            if (fs.existsSync(scriptPath)) {
-                fs.chmodSync(scriptPath, 0o755);
+            if (fs.existsSync(startScript)) {
+                fs.chmodSync(startScript, 0o755);
             }
-            if (fs.existsSync(stopScriptPath)) {
-                fs.chmodSync(stopScriptPath, 0o755);
+            if (fs.existsSync(stopScript)) {
+                fs.chmodSync(stopScript, 0o755);
             }
         }
-    }
-
-    private getStatusFilePath(): string {
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (workspaceFolder) {
-            return path.join(workspaceFolder.uri.fsPath, '.cursor', 'cursor-bird-status.json');
-        }
-        const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-        return path.join(homeDir, '.cursor', 'cursor-bird-status.json');
     }
 
     private getHookScriptPaths(hookScriptPath: string): { startScript: string; stopScript: string } {
@@ -909,17 +939,12 @@ try {
         return { startScript, stopScript };
     }
 
-    private checkHooksExistInConfig(hooks: HooksJson, extensionName: string, startScript: string, stopScript: string): boolean {
-        const startExists = hooks.hooks?.beforeSubmitPrompt?.some(h => 
-            h.command && (h.command.includes(extensionName) || h.command === startScript)
-        );
-        const stopExists = hooks.hooks?.stop?.some(h => 
-            h.command && (h.command.includes(extensionName) || h.command === stopScript)
-        );
-        return Boolean(startExists && stopExists);
-    }
-
-    private addMissingHooks(hooks: HooksJson, extensionName: string, startScript: string, stopScript: string): boolean {
+    /**
+     * Updates hooks.json to ensure cursor-bird hooks point to the correct scripts.
+     * Removes any stale cursor-bird hooks and adds/updates with current paths.
+     * Returns true if any modifications were made.
+     */
+    private updateHooks(hooks: HooksJson, extensionName: string, startScript: string, stopScript: string): boolean {
         if (!hooks.hooks.beforeSubmitPrompt) {
             hooks.hooks.beforeSubmitPrompt = [];
         }
@@ -927,63 +952,56 @@ try {
             hooks.hooks.stop = [];
         }
 
-        const startExists = hooks.hooks.beforeSubmitPrompt?.some(h => 
-            h.command && (h.command.includes(extensionName) || h.command === startScript)
-        );
-        const stopExists = hooks.hooks.stop?.some(h => 
-            h.command && (h.command.includes(extensionName) || h.command === stopScript)
-        );
-
         let modified = false;
+
+        // Remove any existing cursor-bird hooks that don't match current paths
+        const originalStartCount = hooks.hooks.beforeSubmitPrompt.length;
+        const originalStopCount = hooks.hooks.stop.length;
+        
+        hooks.hooks.beforeSubmitPrompt = hooks.hooks.beforeSubmitPrompt.filter(h => {
+            // Keep hooks that are NOT cursor-bird related
+            if (!h.command || !h.command.includes(extensionName)) {
+                return true;
+            }
+            // Keep cursor-bird hooks only if they match current script path
+            return h.command === startScript;
+        });
+        
+        hooks.hooks.stop = hooks.hooks.stop.filter(h => {
+            if (!h.command || !h.command.includes(extensionName)) {
+                return true;
+            }
+            return h.command === stopScript;
+        });
+
+        if (hooks.hooks.beforeSubmitPrompt.length !== originalStartCount) {
+            log(this.outputChannel, `Removed ${originalStartCount - hooks.hooks.beforeSubmitPrompt.length} stale start hook(s)`);
+            modified = true;
+        }
+        if (hooks.hooks.stop.length !== originalStopCount) {
+            log(this.outputChannel, `Removed ${originalStopCount - hooks.hooks.stop.length} stale stop hook(s)`);
+            modified = true;
+        }
+
+        // Add current hooks if not present
+        const startExists = hooks.hooks.beforeSubmitPrompt.some(h => h.command === startScript);
+        const stopExists = hooks.hooks.stop.some(h => h.command === stopScript);
+
         if (!startExists) {
             hooks.hooks.beforeSubmitPrompt.push({ command: startScript });
+            log(this.outputChannel, `Added start hook: ${startScript}`);
             modified = true;
         }
         if (!stopExists) {
             hooks.hooks.stop.push({ command: stopScript });
+            log(this.outputChannel, `Added stop hook: ${stopScript}`);
             modified = true;
         }
 
         return modified;
     }
 
-    private async setupHooksFile(hooksFile: vscode.Uri, hookScriptPath: string): Promise<void> {
-        const decoder = new TextDecoder('utf-8');
-        let hooks: HooksJson = { version: 1, hooks: {} };
-
-        try {
-            const data = await vscode.workspace.fs.readFile(hooksFile);
-            const content = decoder.decode(data);
-            hooks = JSON.parse(content) as HooksJson;
-            if (!hooks.hooks) {
-                hooks.hooks = {};
-            }
-        } catch {
-            // File doesn't exist, create directory
-            const cursorDir = vscode.Uri.joinPath(hooksFile, '..');
-            try {
-                await vscode.workspace.fs.createDirectory(cursorDir);
-            } catch {
-                // Directory might already exist
-            }
-        }
-
-        const { startScript, stopScript } = this.getHookScriptPaths(hookScriptPath);
-        const extensionName = 'cursor-bird';
-        
-        // Add missing hooks
-        const modified = this.addMissingHooks(hooks, extensionName, startScript, stopScript);
-
-        if (modified) {
-            const encoder = new TextEncoder();
-            await vscode.workspace.fs.writeFile(hooksFile, encoder.encode(JSON.stringify(hooks, null, 2)));
-            log(this.outputChannel, `Updated hooks.json: added missing hooks`);
-        } else {
-            log(this.outputChannel, `Hooks already correctly configured, skipping update`);
-        }
-    }
-
-    private async setupHooksFileGlobal(hooksFilePath: string, hookScriptPath: string): Promise<void> {
+    private async setupHooksFileGlobal(hooksFilePath: string, hookScriptPath: string): Promise<boolean> {
         let hooks: HooksJson = { version: 1, hooks: {} };
 
         if (fs.existsSync(hooksFilePath)) {
@@ -1005,16 +1023,93 @@ try {
         }
 
         const { startScript, stopScript } = this.getHookScriptPaths(hookScriptPath);
-        const extensionName = 'cursor-bird';
-        
-        // Add missing hooks
-        const modified = this.addMissingHooks(hooks, extensionName, startScript, stopScript);
+        const extensionName = EXTENSION_NAME;
+
+        // Update hooks (removes stale, adds current)
+        const modified = this.updateHooks(hooks, extensionName, startScript, stopScript);
 
         if (modified) {
             fs.writeFileSync(hooksFilePath, JSON.stringify(hooks, null, 2));
-            log(this.outputChannel, `Updated hooks.json: added missing hooks`);
+            log(this.outputChannel, `Updated global hooks.json`);
         } else {
-            log(this.outputChannel, `Hooks already correctly configured, skipping update`);
+            log(this.outputChannel, `Global hooks already correctly configured`);
+        }
+
+        return modified;
+    }
+}
+
+type HookSetupSource = 'activate' | 'command';
+
+/**
+ * Handles the result of hook setup, showing appropriate messages and actions.
+ * Used by both activate() and the setupHooks command to ensure consistent behavior.
+ */
+async function handleHookSetupResult(
+    setupResult: HookSetupResult,
+    hookManager: HookManager,
+    source: HookSetupSource,
+    context?: vscode.ExtensionContext
+): Promise<void> {
+    if (!setupResult.success) {
+        // Failure case - show error with options
+        if (source === 'activate' && context) {
+            // In activate() - show warning with multiple options
+            const action = await vscode.window.showWarningMessage(
+                `Cursor Bird: ${setupResult.message}. Would you like to set up hooks manually?`,
+                'Open README',
+                'Show Output',
+                'Try Setup Again'
+            );
+            
+            if (action === 'Open README') {
+                vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.joinPath(context.extensionUri, 'README.md'));
+            } else if (action === 'Show Output') {
+                hookManager.showOutput();
+            } else if (action === 'Try Setup Again') {
+                vscode.commands.executeCommand('cursorBird.setupHooks');
+            }
+        } else {
+            // In command - show error and output
+            vscode.window.showErrorMessage(`✗ ${setupResult.message}`);
+            hookManager.showOutput();
+        }
+    } else {
+        // Success case - restart message only shows if hooks.json was actually modified
+        // Note: Script file updates don't require a restart, only hooks.json changes do
+        let message: string;
+        if (source === 'activate') {
+            // In activate() - only show message if hooks.json was actually modified
+            // (if already configured, it's logged to output channel, no need to notify user)
+            if (setupResult.modified) {
+                message = `Cursor Bird: Hooks configured. Please restart Cursor for hooks to take effect.`;
+            } else {
+                // Hooks already configured - no message needed (already logged)
+                return;
+            }
+        } else {
+            // In command - always show message since user explicitly ran the command
+            message = `✓ ${setupResult.message}.`;
+            // Only add restart prompt if hooks.json was modified (script updates don't require restart)
+            if (setupResult.modified) {
+                message += ' Please restart Cursor for hooks to take effect.';
+            }
+        }
+
+        let action: string | undefined;
+        if (setupResult.modified) {
+            // Only show restart option if hooks.json was modified
+            action = await vscode.window.showInformationMessage(
+                message,
+                'Restart Now'
+            );
+        } else {
+            // Just show info message without restart option
+            vscode.window.showInformationMessage(message);
+        }
+
+        if (action === 'Restart Now') {
+            vscode.commands.executeCommand('workbench.action.reloadWindow');
         }
     }
 }
@@ -1100,12 +1195,7 @@ export async function activate(context: vscode.ExtensionContext) {
             }),
             vscode.commands.registerCommand('cursorBird.setupHooks', async () => {
                 const setupResult = await hookManager.setupHooks();
-                if (setupResult.success) {
-                    vscode.window.showInformationMessage(`✓ ${setupResult.message}`);
-                } else {
-                    vscode.window.showErrorMessage(`✗ ${setupResult.message}`);
-                    hookManager.showOutput();
-                }
+                await handleHookSetupResult(setupResult, hookManager, 'command');
             }),
             vscode.commands.registerCommand('cursorBird.resetBestScore', async () => {
                 await webviews.resetBestScore();
@@ -1117,63 +1207,23 @@ export async function activate(context: vscode.ExtensionContext) {
             { dispose: () => webviews.dispose() }
         );
 
-        // Always ensure hook scripts exist (even if hooks.json is already configured)
-        log(outputChannel, 'Ensuring hook scripts exist...');
-        const scriptsResult = await hookManager.ensureScriptsExist();
-        if (!scriptsResult.success) {
-            log(outputChannel, 'WARNING: Failed to ensure hook scripts exist');
-        } else if (scriptsResult.scriptPath) {
-            log(outputChannel, `Hook scripts ensured at: ${scriptsResult.scriptPath}`);
-        }
-
-        // Try to set up hooks automatically (after commands are registered)
-        // Only set up hooks.json if hooks don't already exist - check first before calling setupHooks
+        // Check hooks and set them up if needed (consolidated flow)
         log(outputChannel, 'Checking hooks configuration...');
-        const hooksCheckResult = await hookManager.checkHooksExist();
-        if (!hooksCheckResult.exists) {
+        const { setupResult, checkResult } = await hookManager.setupHooksIfNeeded();
+        
+        if (checkResult.exists && !checkResult.needsUpdate) {
+            log(outputChannel, `Hooks already configured correctly (${checkResult.location})`);
+            if (checkResult.hookPaths) {
+                log(outputChannel, `  Hook paths: start=${checkResult.hookPaths.start}, stop=${checkResult.hookPaths.stop}`);
+            }
+        } else if (checkResult.needsUpdate) {
+            log(outputChannel, `Hooks exist but needed update, updating...`);
+        } else {
             log(outputChannel, 'Hooks not found, setting up...');
-            const setupResult = await hookManager.setupHooks();
-            log(outputChannel, `Hook setup result: success=${setupResult.success}, message=${setupResult.message}`);
-
-            if (!setupResult.success) {
-            // Show notification with instructions
-            const action = await vscode.window.showWarningMessage(
-                `Cursor Bird: ${setupResult.message}. Would you like to set up hooks manually?`,
-                'Open README',
-                'Show Output',
-                'Try Setup Again'
-            );
-            
-            if (action === 'Open README') {
-                vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.joinPath(context.extensionUri, 'README.md'));
-            } else if (action === 'Show Output') {
-                hookManager.showOutput();
-            } else if (action === 'Try Setup Again') {
-                vscode.commands.executeCommand('cursorBird.setupHooks');
-            }
-        } else {
-            vscode.window.showInformationMessage(
-                `Cursor Bird: ${setupResult.message}. Please restart Cursor for hooks to take effect.`,
-                'Restart Now'
-            ).then((action) => {
-                if (action === 'Restart Now') {
-                    vscode.commands.executeCommand('workbench.action.reloadWindow');
-                }
-            });
         }
-        } else {
-            log(outputChannel, `Hooks already exist (${hooksCheckResult.location}), skipping hooks.json update`);
-            if (hooksCheckResult.hookPaths) {
-                log(outputChannel, `  Hook paths: start=${hooksCheckResult.hookPaths.start}, stop=${hooksCheckResult.hookPaths.stop}`);
-                // Verify the scripts exist at those paths
-                if (hooksCheckResult.hookPaths.start && !fs.existsSync(hooksCheckResult.hookPaths.start)) {
-                    log(outputChannel, `  WARNING: Start hook script not found at: ${hooksCheckResult.hookPaths.start}`);
-                }
-                if (hooksCheckResult.hookPaths.stop && !fs.existsSync(hooksCheckResult.hookPaths.stop)) {
-                    log(outputChannel, `  WARNING: Stop hook script not found at: ${hooksCheckResult.hookPaths.stop}`);
-                }
-            }
-        }
+        
+        log(outputChannel, `Hook setup result: success=${setupResult.success}, message=${setupResult.message}`);
+        await handleHookSetupResult(setupResult, hookManager, 'activate', context);
         
         log(outputChannel, '=== Extension activation complete ===');
     } catch (err) {
@@ -1218,6 +1268,7 @@ export function deactivate() {
         // Silent fail on deactivate - extension is shutting down anyway
     }
 }
+
 
 
 
