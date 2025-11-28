@@ -1128,14 +1128,6 @@ export async function activate(context: vscode.ExtensionContext) {
         // Validate that a workspace folder exists
         if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
             log(outputChannel, 'No workspace folder found - extension requires a workspace');
-            vscode.window.showWarningMessage(
-                'Cursor Bird requires an open workspace folder to function. Please open a folder and reload the extension.',
-                'Open Folder'
-            ).then((action) => {
-                if (action === 'Open Folder') {
-                    vscode.commands.executeCommand('vscode.openFolder');
-                }
-            });
             // Still register commands so they don't fail if invoked
             context.subscriptions.push(
                 vscode.commands.registerCommand('cursorBird.toggle', () => {
