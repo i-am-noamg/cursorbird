@@ -3,7 +3,6 @@
 <div align="center">
 
 [![GitHub Release](https://img.shields.io/github/v/release/i-am-noamg/cursorbird?style=for-the-badge&logo=github)](https://github.com/i-am-noamg/cursorbird/releases)
-[![Downloads](https://img.shields.io/github/downloads/i-am-noamg/cursorbird/total?style=for-the-badge&logo=github)](https://github.com/i-am-noamg/cursorbird/releases)
 [![Stars](https://img.shields.io/github/stars/i-am-noamg/cursorbird?style=for-the-badge&logo=github)](https://github.com/i-am-noamg/cursorbird)
 [![License](https://img.shields.io/github/license/i-am-noamg/cursorbird?style=for-the-badge)](LICENSE)
 
@@ -11,19 +10,15 @@
 
 The ultimate productivity hack: Stay entertained while your AI agents get sh!t done.
 
-[🚀 Download Latest Release](https://github.com/i-am-noamg/cursorbird/releases/latest) • [📖 Documentation](#features) • [🐛 Report Bug](https://github.com/i-am-noamg/cursorbird/issues) • [💡 Request Feature](https://github.com/i-am-noamg/cursorbird/issues)
-
----
-
-Available now in Cursor's built-in Extension search!
-
-<img width="345" height="268" alt="image" src="https://github.com/user-attachments/assets/b59804fe-5d13-43a2-879a-e07434ef1b45" />
-
----
-
-Like, Share & Subscribe -->
+[📖 Documentation](#features) • [🐛 Report Bug](https://github.com/i-am-noamg/cursorbird/issues) • [💡 Request Feature](https://github.com/i-am-noamg/cursorbird/issues)
 
 <a href="https://www.buymeacoffee.com/noamgal" target="_blank"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=☕&slug=noamgal&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy Me A Coffee" style="height: 30px !important; width: auto !important; max-width: 150px !important;" /></a>
+
+---
+
+Available in Cursor's built-in Extension search!
+
+<img width="345" height="268" alt="image" src="https://github.com/user-attachments/assets/b59804fe-5d13-43a2-879a-e07434ef1b45" />
 
 </div>
 
@@ -35,7 +30,7 @@ Like, Share & Subscribe -->
 
 ## 🎯 What is This?
 
-Play **Cursor Bird** while Cursor agents are running. The game automatically opens in a paused state when an agent starts and closes when all agents finish. **Tab to flap** and keep yourself entertained instead of doomscrolling on your phone, only to realize your agent finished 30 minutes ago.
+Play **Cursor Bird** while Cursor agents are running. The game automatically opens when an agent starts and closes when all agents finish. **Tab to flap** and keep yourself entertained instead of doomscrolling on your phone, only to realize your agent finished 30 minutes ago.
 
 ## ✨ Features
 
@@ -52,27 +47,19 @@ Play **Cursor Bird** while Cursor agents are running. The game automatically ope
 
 ### Installation
 
-**Method 1: From Extensions Panel**
+**From Cursor's Extension Search** (Recommended)
 1. Open Cursor
 2. Go to Extensions (Cmd/Ctrl+Shift+X)
 3. Search for "Cursor Bird"
 4. Click Install
 5. Restart Cursor
-6. **Add `.cursor/` to your `.gitignore`** to avoid committing status files:
-   ```gitignore
-   .cursor/
-   ```
 
-**Method 2: Manual Installation**
+**Manual Installation**
 1. Download the `.vsix` file from [GitHub Releases](https://github.com/i-am-noamg/cursorbird/releases/latest)
-2. In Cursor, press Cmd/Ctrl+Shift+P
-3. Type "Install from VSIX"
-4. Select the downloaded file
-5. Restart Cursor
-6. **Add `.cursor/` to your `.gitignore`** to avoid committing status files:
-   ```gitignore
-   .cursor/
-   ```
+2. In Cursor, press Cmd/Ctrl+Shift+P → "Install from VSIX" → Select the file
+3. Restart Cursor
+
+**Note:** Add `.cursor/` to your `.gitignore` to avoid committing status files.
 
 ### Usage
 
@@ -85,24 +72,11 @@ That's it! The extension automatically sets up everything you need.
 
 ## ⚠️ Requirements
 
-- **Node.js** must be installed and available in your PATH
-  - Hook scripts use Node.js to detect agent start/stop
-  - Verify with `node --version` in your terminal
-  - If missing, the game won't auto-open (manual commands still work)
+**Node.js** must be installed and available in your PATH. Verify with `node --version`. If missing, the game won't auto-open (manual commands still work).
 
-## Setup
+## Commands & Configuration
 
-The extension will automatically configure Cursor Hooks globally during installation. **Important: You must restart Cursor after hooks are configured for them to take effect.**
-
-### Automatic Setup (Global Hooks)
-
-The extension automatically:
-1. **Generates hook scripts** (stored in extension directory: `{extension}/dist/hook/`)
-2. **Configures hooks globally** in `~/.cursor/hooks.json` (or `%USERPROFILE%\.cursor\hooks.json` on Windows)
-
-The hook scripts are **workspace-aware** - they automatically detect which workspace they're running in and track agents separately for each workspace.
-
-## Commands
+**Commands:**
 - **Cursor Bird: Toggle** - Manually toggle the game
 - **Cursor Bird: Start** - Manually start the game
 - **Cursor Bird: Stop** - Manually stop the game
@@ -110,154 +84,23 @@ The hook scripts are **workspace-aware** - they automatically detect which works
 - **Cursor Bird: Setup Hooks** - Manually configure global Cursor Hooks (in `~/.cursor/hooks.json`)
 - **Cursor Bird: Configure Game Settings** - Open extension settings
 
-## Configuration
-
-The extension supports extensive customization via Cursor settings:
-- **Physics**: Gravity, flap velocity, pipe speed, spawn intervals
-- **Visual**: Colors, bird size, pipe dimensions
-- **Behavior**: Auto-show on agent start, polling interval, webview position
-- **Controls**: Flap key (Tab, Space, Enter, or ArrowUp)
-
-Access settings via the command palette or search for "Cursor Bird" in Cursor settings.
-
-## What the Extension Creates
-
-During installation and use, the extension creates the following files:
-
-### Hook Scripts (Persistent)
-Located in extension directory: `{extension}/dist/hook/`
-
-Files created:
-- `hook.sh` / `hook.bat` - Start hook wrapper script
-- `hook-stop.sh` / `hook-stop.bat` - Stop hook wrapper script
-- `hook-node.js` - Node.js logic for detecting agent start
-- `hook-stop-node.js` - Node.js logic for detecting agent stop
-
-### Hook Configuration (Persistent)
-- Global: `~/.cursor/hooks.json` - Hook entries added to this file
-
-### Status Files (Temporary)
-Created during runtime, cleaned up on disable:
-- Workspace: `{workspace}/.cursor/cursor-bird-status.json` (+ `.tmp` file)
-
-### Best Scores
-- Stored in Cursor's workspace state (one per workspace)
-- Can be reset with "Reset Best Score" command
-
-## Disabling vs. Uninstalling
-
-### When You **Disable** the Extension
-
-The extension automatically cleans up runtime state:
-- ✅ Removes workspace status tracking files (`{workspace}/.cursor/cursor-bird-status.json`)
-- ✅ Removes temporary files (`.tmp` variants)
-- ❌ Leaves hook scripts in place (so they work when you re-enable)
-- ❌ Leaves hook entries in `hooks.json` (so they work when you re-enable)
-
-**Result:** You can re-enable the extension and it will work immediately without reconfiguration.
-
-### When You **Uninstall** the Extension
-
-The extension performs complete cleanup:
-- ✅ Removes hook entries from `~/.cursor/hooks.json` (global hooks file)
-- ✅ Removes any remaining status tracking files (fallback cleanup)
-- ✅ Cursor automatically removes:
-  - Extension directory (including hook scripts in `{extension}/dist/hook/`)
-  - Best score storage for all workspaces
-
-**Note:** The uninstall cleanup happens automatically via Cursor's `vscode:uninstall` hook. You may need to restart Cursor to see the cleanup complete. This is a Cursor platform requirement.
-
-**Result:** All traces of the extension are completely removed from your system - no manual cleanup needed!
-
-## How It Works
-
-The extension uses Cursor's Hooks system to detect when agents start and stop:
-- When an agent is about to start, the `beforeSubmitPrompt` hook triggers and writes to a status file
-- The extension watches this status file and opens the game in a paused state (if `autoShow` is enabled)
-- When an agent stops, the `stop` hook triggers and decrements the agent count
-- The game closes when the agent count reaches zero
-- Multiple agents are tracked - the game stays open until all agents finish
-
-**Note:** For multi-root workspaces, only the first workspace folder is tracked. This is a limitation of the current implementation.
-
-## Multiple Windows Behavior
-
-### Different Workspaces
-When you have multiple Cursor windows open with **different workspaces**, each workspace maintains:
-- Its own **independent best score** (stored per-workspace in Cursor's workspace state)
-- Its own **independent agent tracking** (via `.cursor/cursor-bird-status.json` in each workspace)
-- **No interference** - agents in workspace A don't affect workspace B
-
-**Hook Setup**: With global hooks (default), all workspaces automatically work with the same hooks while maintaining separate agent tracking for each.
-
-### Same Workspace
-When you have multiple Cursor windows open with the **same workspace**:
-- **Best score is shared** across all windows (since they're the same workspace)
-- **Agent tracking is shared** - when an agent starts in one window, the game will open in all windows of that workspace
-
-This is a limitation of Cursor's Hooks system, which operates at the workspace level rather than the window level. Hooks cannot distinguish which specific window triggered an agent, so all windows react to agent events in the shared workspace.
-
-### Hook Script Behavior
-
-The hook scripts are **workspace-aware** - they automatically detect which workspace they're running in (via current working directory or JSON input) and track agents separately for each workspace. A single set of hook scripts can be used globally and will correctly track agents separately for each workspace.
+**Settings:** Customize physics, visuals, behavior, and controls via Cursor settings. Search for "Cursor Bird" in settings or use the command palette.
 
 ## Frequently Asked Questions
 
 ### Do I need to set up hooks for each workspace?
 
-**No!** The extension automatically configures **global hooks** in `~/.cursor/hooks.json` during installation. These hooks work across all workspaces automatically, while still tracking agents separately for each workspace.
+No! The extension automatically configures global hooks during installation. They work across all workspaces automatically.
 
-### What files does the extension create in my workspace?
+### What files does the extension create?
 
-For a complete list of all files created, see the [What the Extension Creates](#what-the-extension-creates) section above.
-
-Within your workspace directory specifically, the extension creates:
-- `.cursor/cursor-bird-status.json` - Temporary status file for tracking active agents (automatically cleaned up when you disable the extension)
-- `.cursor/cursor-bird-status.json.tmp` - Temporary file used for atomic writes (also cleaned up on disable)
-
-**Important**: You should add `.cursor/` to your `.gitignore` to avoid committing these files:
-
-```gitignore
-.cursor/
-```
-
-All workspace files are automatically cleaned up when you disable or uninstall the extension.
-
-### Can I disable the game for specific workspaces?
-
-Yes! Set `cursorBird.behavior.autoShow` to `false` in workspace settings. The game won't automatically open, but you can still start it manually with the "Cursor Bird: Start" command.
+The extension creates temporary status files in `.cursor/` within your workspace. These are automatically cleaned up when you disable or uninstall the extension. Add `.cursor/` to your `.gitignore` to avoid committing them.
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Whether it's bug reports, feature requests, or code contributions – all are appreciated.
-
-### How to Contribute
-
-1. **Report bugs or suggest features** via [GitHub Issues](https://github.com/i-am-noamg/cursorbird/issues)
-2. **Submit pull requests** – see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
-3. **Star the repo** ⭐ if you find it useful!
-4. **Share it** with fellow Cursor users
-
-### Development Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/i-am-noamg/cursorbird.git
-cd cursorbird
-
-# Install dependencies
-npm install
-
-# Build and watch for changes
-npm run watch
-
-# Package the extension
-npm run package
-```
-
-For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome! Report bugs, suggest features, or submit pull requests via [GitHub Issues](https://github.com/i-am-noamg/cursorbird/issues). See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 ---
 
