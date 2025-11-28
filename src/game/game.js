@@ -31,6 +31,10 @@
   // Initialize game variables early to avoid temporal dead zone issues
   let birdX = 0, birdY = 0, birdVY = 0, pipes = [], score = 0, best = 0, running = false, startedOnce = false, dead = false, spawnTimer = 0;
   
+  // Frame-rate independence: target 60 FPS for consistent gameplay across different refresh rates
+  const TARGET_FPS = 60;
+  let lastFrameTime = 0;
+  
   function resize() {
     const newWidth = Math.max(MIN_WIDTH, canvas.clientWidth || window.innerWidth || DEFAULT_WIDTH);
     const newHeight = Math.max(MIN_HEIGHT, canvas.clientHeight || window.innerHeight || DEFAULT_HEIGHT);
@@ -312,10 +316,14 @@
     return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
   }
 
-  function update() {
+  function update(deltaTime) {
     if (!running) return;
-    birdVY += config.gravity;
-    birdY += birdVY;
+    
+    // Normalize deltaTime to target FPS (60 FPS = 1.0, 120 FPS = 0.5, etc.)
+    const timeScale = deltaTime * TARGET_FPS / 1000;
+    
+    birdVY += config.gravity * timeScale;
+    birdY += birdVY * timeScale;
     
     // Clamp birdY to valid bounds to prevent extreme values
     const groundTop = height - config.groundHeight;
@@ -323,14 +331,14 @@
     const maxY = groundTop - config.birdRadius;
     birdY = Math.max(minY, Math.min(maxY, birdY));
 
-    spawnTimer -= 1;
+    spawnTimer -= timeScale;
     if (spawnTimer <= 0) {
       spawnPipe();
       spawnTimer = config.pipeSpawnInterval;
     }
 
     for (const p of pipes) {
-      p.x -= config.pipeSpeed;
+      p.x -= config.pipeSpeed * timeScale;
       if (!p.scored && p.x + config.pipeWidth < birdX) {
         p.scored = true;
         score += 1;
@@ -377,8 +385,20 @@
     }
   }
 
-  function loop() {
-    update();
+  function loop(currentTime) {
+    // Initialize lastFrameTime on first frame
+    if (lastFrameTime === 0) {
+      lastFrameTime = currentTime;
+    }
+    
+    // Calculate delta time (time elapsed since last frame)
+    const deltaTime = currentTime - lastFrameTime;
+    lastFrameTime = currentTime;
+    
+    // Cap delta time to prevent large jumps (e.g., when tab is inactive)
+    const cappedDeltaTime = Math.min(deltaTime, 1000 / TARGET_FPS * 2);
+    
+    update(cappedDeltaTime);
     render();
     requestAnimationFrame(loop);
   }
@@ -462,7 +482,7 @@
 
   // init
   resetGame();
-  loop();
+  requestAnimationFrame(loop);
 })();
 
 

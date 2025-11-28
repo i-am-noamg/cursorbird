@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multiplayer mode for comparing scores with teammates
 - Achievement system
 
+## [0.0.3] - 2025-01-XX
+
+### Fixed
+- Frame-rate independence: Game now runs at consistent speed across different display refresh rates (60Hz, 120Hz, etc.)
+- Fixed issue where game ran 2x faster on high refresh rate displays (e.g., MacBook Pro 120Hz vs MacBook Air 60Hz)
+
 ## [0.0.2] - 2025-11-20
 
 ### Added
@@ -82,6 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **0.0.3** (2025-01-XX) - Fixed frame-rate independence issue for consistent gameplay across different refresh rates
 - **0.0.2** (2025-11-20) - Improved gameplay mechanics, physics accuracy, and pipe spawning logic
 - **0.0.1** (2025-11-15) - Initial release with core game and Cursor Hooks integration
 
