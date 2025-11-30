@@ -18,7 +18,7 @@ The ultimate productivity hack: Stay entertained while your AI agents get sh!t d
 
 Available in Cursor's built-in Extension search!
 
-<img width="345" height="268" alt="image" src="https://github.com/user-attachments/assets/b59804fe-5d13-43a2-879a-e07434ef1b45" />
+![Cursor Extension Search](https://github.com/i-am-noamg/cursorbird/raw/HEAD/images/search.png)
 
 </div>
 

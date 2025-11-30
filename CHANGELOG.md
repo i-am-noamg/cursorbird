@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multiplayer mode for comparing scores with teammates
 - Achievement system
 
+## [0.0.4] - 2025-11-30
+
+### Fixed
+- Fixed broken image in README.md - replaced external image URL with local image file
+
 ## [0.0.3] - 2025-11-28
 
 ### Added
@@ -96,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **0.0.4** (2025-11-30) - Fixed broken image in README
 - **0.0.3** (2025-11-28) - Fixed frame-rate independence, added Toggle Auto-Show command, improved hook management and uninstall cleanup
 - **0.0.2** (2025-11-20) - Improved gameplay mechanics, physics accuracy, and pipe spawning logic
 - **0.0.1** (2025-11-15) - Initial release with core game and Cursor Hooks integration
