@@ -12,7 +12,6 @@ function getHomeDirectory(): string | undefined {
 // Constants
 const EXTENSION_NAME = 'cursor-bird';
 const PANEL_REVEAL_DELAY_MS = 100;
-const STATUS_FILE_READ_DELAY_MS = 100;
 const NONCE_BYTES = 16;
 
 // Type definitions for messages and data structures
@@ -242,55 +241,6 @@ class AgentTracker {
         }
     }
 
-    public agentStarted(): void {
-        this.updateStatusFile(1);
-    }
-
-    public agentStopped(): void {
-        this.updateStatusFile(-1);
-    }
-
-    private updateStatusFile(delta: number): void {
-        const statusFile = this.getStatusFile();
-        if (!statusFile) return;
-
-        const statusDir = path.dirname(statusFile);
-        if (!fs.existsSync(statusDir)) {
-            fs.mkdirSync(statusDir, { recursive: true });
-        }
-
-        let currentCount = 0;
-        if (fs.existsSync(statusFile)) {
-            try {
-                const content = fs.readFileSync(statusFile, 'utf-8');
-                const data = JSON.parse(content) as StatusFileData;
-                currentCount = typeof data.activeCount === 'number' ? data.activeCount : 0;
-            } catch {
-                // Invalid JSON, start fresh
-            }
-        }
-
-        const newCount = Math.max(0, currentCount + delta);
-        // Atomic write: write to temp file, then rename
-        const tempFile = statusFile + '.tmp';
-        try {
-            const statusData: StatusFileData = { activeCount: newCount, lastUpdate: Date.now() };
-            fs.writeFileSync(tempFile, JSON.stringify(statusData, null, 2));
-            fs.renameSync(tempFile, statusFile);
-        } catch (err) {
-            const error = err as Error;
-            log(this.outputChannel, `Error writing status file: ${error.message}`);
-            // Cleanup temp file if it exists
-            if (fs.existsSync(tempFile)) {
-                try { fs.unlinkSync(tempFile); } catch {
-                    // Ignore cleanup errors
-                }
-            }
-        }
-        
-        // Trigger read to update UI
-        setTimeout(() => this.readStatusFile(), STATUS_FILE_READ_DELAY_MS);
-    }
 
     public dispose(): void {
         if (this.statusFileWatcher) {
@@ -857,11 +807,18 @@ try {
   // Update count
   data.activeCount = Math.max(0, (data.activeCount || 0) ${deltaStr});
   data.lastUpdate = Date.now();
-  
-  // Atomic write
-  const tempFile = statusFile + '.tmp';
-  fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
-  fs.renameSync(tempFile, statusFile);
+
+  // If count reaches 0, delete the status file instead of writing to it
+  if (data.activeCount === 0) {
+    if (fs.existsSync(statusFile)) {
+      fs.unlinkSync(statusFile);
+    }
+  } else {
+    // Atomic write
+    const tempFile = statusFile + '.tmp';
+    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+    fs.renameSync(tempFile, statusFile);
+  }
 } catch (err) {
   console.error('Cursor Bird hook error:', err.message);
   process.exit(0); // Don't fail the parent process

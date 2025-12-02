@@ -5,6 +5,11 @@ All notable changes to the "Cursor Bird" extension will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-12-02
+
+### Changed
+- Improved agent tracking to be more git-friendly by not leaving empty status files
+
 ## [1.0.0] - 2025-11-30
 
 ### Changed
@@ -97,6 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History Summary
 
+- **1.0.1** (2025-12-02) - Delete status file when done, cleaned up dead code
 - **1.0.0** (2025-11-30) - Official release
 - **0.0.4** (2025-11-30) - Fixed broken image in README
 - **0.0.3** (2025-11-28) - Fixed frame-rate independence, added Toggle Auto-Show command, improved hook management and uninstall cleanup
